@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:fluttervideo/PicListAndPos.dart';
 import 'package:fluttervideo/SearchVideo.dart';
 import 'package:fluttervideo/VideoData.dart';
 import 'package:fluttervideo/VideoItemWidget.dart';
@@ -53,20 +54,32 @@ class _MyHomePageState extends State<MyHomePage> {
   bool isLoading = false;
 
   @override
+  void initState() {
+    super.initState();
+    scrollController.addListener(() {
+      if (scrollController.position.pixels ==
+          scrollController.position.maxScrollExtent) {
+        print('bottom');
+        getMore();
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(
           title: Text(widget.title),
         ),
-        body: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-              child: Row(
-                children: <Widget>[
+        body: Container(
+          color: const Color(0xfff1f1f1),
+          padding: const EdgeInsets.fromLTRB(10, 10, 10, 0),
+          child: Column(
+            children: [
+              Row(
+                children: [
                   Expanded(
-                    flex: 1,
                     child: TextField(
                       onChanged: (str) {
                         setState(() {
@@ -83,47 +96,43 @@ class _MyHomePageState extends State<MyHomePage> {
                       autofocus: true,
                     ),
                   ),
-                  Container(
-                    margin: const EdgeInsets.all(20),
-                    child: MaterialButton(
-                      height: 55,
-                      onPressed: () {
-                        getVideo();
-                      },
-                      color: Colors.green,
-                      child: const Text(
-                        "搜索",
-                        style: TextStyle(fontSize: 18, color: Colors.white),
-                      ),
+                  MaterialButton(
+                    height: 55,
+                    onPressed: () {
+                      getVideo();
+                    },
+                    color: Colors.green,
+                    child: const Text(
+                      "搜索",
+                      style: TextStyle(fontSize: 18, color: Colors.white),
                     ),
                   ),
                 ],
               ),
-            ),
-            Container(
-              color: Colors.white,
-              child: RefreshIndicator(
-                  onRefresh: onRefresh,
-                  child: GridView(
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      mainAxisSpacing: 5,
-                      crossAxisSpacing: 5,
-                      childAspectRatio: .6,
-                    ),
-                    controller: scrollController,
-                    physics: const BouncingScrollPhysics(),
-                    children: itemViews,
-                  )),
-            )
-          ],
+              Expanded(
+                child: RefreshIndicator(
+                    onRefresh: onRefresh,
+                    child: GridView(
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        mainAxisSpacing: 10,
+                        crossAxisSpacing: 10,
+                        childAspectRatio: 1.6,
+                      ),
+                      controller: scrollController,
+                      physics: const BouncingScrollPhysics(),
+                      children: itemViews,
+                    )),
+              )
+            ],
+          ),
         ));
   }
 
   void getVideo() async {
     print(keyword);
-    String url = "https://api.pingcc.cn/video/search/title/$keyword/1/30";
+    String url = "https://api.pingcc.cn/video/search/title/$keyword/$page/30";
     Dio dio = Dio();
     var map = <String, dynamic>{};
     var response = await dio.get(url, queryParameters: map);
@@ -131,11 +140,13 @@ class _MyHomePageState extends State<MyHomePage> {
     SearchVideo video = SearchVideo.fromJson(json);
     if (video.videoData != null) {
       setState(() {
-        videos.clear();
+        if (page == 1) {
+          videos.clear();
+        }
         videos.addAll(video.videoData!);
         print(video.videoData);
-        buildItemWidget();
       });
+      buildItemWidget();
     }
   }
 
@@ -151,11 +162,12 @@ class _MyHomePageState extends State<MyHomePage> {
   void buildItemWidget() {
     List<Widget> w = [];
     w.clear();
-    for (var element in videos) {
-      w.add(VideoItemWidget(video: element.cover.toString()));
+    for (int i = 0; i < videos.length; i++) {
+      VideoListAndPos videoListAndPos = VideoListAndPos(videos, i);
+
+      w.add(VideoItemWidget(video: videoListAndPos));
     }
     setState(() {
-      // itemViews.clear();
       itemViews = w;
     });
   }
