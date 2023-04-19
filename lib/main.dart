@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttervideo/SearchVideo.dart';
@@ -20,8 +22,17 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
       ),
       home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      scrollBehavior: MyCustomScrollBehavior(),
     );
   }
+}
+
+class MyCustomScrollBehavior extends MaterialScrollBehavior {
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+        PointerDeviceKind.touch,
+        PointerDeviceKind.mouse,
+      };
 }
 
 class MyHomePage extends StatefulWidget {
@@ -37,6 +48,9 @@ class _MyHomePageState extends State<MyHomePage> {
   ScrollController scrollController = ScrollController();
   List<VideoData> videos = [];
   List<Widget> itemViews = [];
+  String keyword = "";
+  int page = 1;
+  bool isLoading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -51,16 +65,22 @@ class _MyHomePageState extends State<MyHomePage> {
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
               child: Row(
                 children: <Widget>[
-                  const Expanded(
+                  Expanded(
                     flex: 1,
                     child: TextField(
-                      decoration: InputDecoration(
+                      onChanged: (str) {
+                        setState(() {
+                          keyword = str;
+                        });
+                      },
+                      decoration: const InputDecoration(
                         contentPadding: EdgeInsets.all(10.0),
                         border: OutlineInputBorder(),
                         hintText: '请输入关键字',
                         labelText: '看会片儿',
                         prefixIcon: Icon(Icons.person),
                       ),
+                      autofocus: true,
                     ),
                   ),
                   Container(
@@ -80,13 +100,14 @@ class _MyHomePageState extends State<MyHomePage> {
                 ],
               ),
             ),
-            Expanded(
+            Container(
+              color: Colors.white,
               child: RefreshIndicator(
                   onRefresh: onRefresh,
                   child: GridView(
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 6,
+                      crossAxisCount: 3,
                       mainAxisSpacing: 5,
                       crossAxisSpacing: 5,
                       childAspectRatio: .6,
@@ -101,7 +122,8 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void getVideo() async {
-    String url = "https://api.pingcc.cn/video/search/title/火影/1/30";
+    print(keyword);
+    String url = "https://api.pingcc.cn/video/search/title/$keyword/1/30";
     Dio dio = Dio();
     var map = <String, dynamic>{};
     var response = await dio.get(url, queryParameters: map);
@@ -111,50 +133,46 @@ class _MyHomePageState extends State<MyHomePage> {
       setState(() {
         videos.clear();
         videos.addAll(video.videoData!);
+        print(video.videoData);
+        buildItemWidget();
       });
-      buildItemWidget();
     }
+  }
+
+  Future onRefresh() async {
+    await Future.delayed(const Duration(seconds: 1), () {
+      setState(() {
+        page = 1;
+      });
+      getVideo();
+    });
   }
 
   void buildItemWidget() {
     List<Widget> w = [];
     w.clear();
-    // for (int i = 0; i < videos.length; i++) {
-    //   VideoData videoData = videos[i];
-    //   w.add(VideoItemWidget(video: videoData));
-    //   print("111"+videoData.cover.toString());
-    //   // w.add(Text(videos[i].title.toString()));
-    // }
-    videos.forEach((element) {
+    for (var element in videos) {
       w.add(VideoItemWidget(video: element.cover.toString()));
-    });
+    }
     setState(() {
+      // itemViews.clear();
       itemViews = w;
     });
   }
 
-  Future onRefresh() async {
-    // await Future.delayed(const Duration(seconds: 1), () {
-    //   setState(() {
-    //     page = 1;
-    //   });
-    //   getRequest();
-    // });
-  }
-
   Future getMore() async {
-    // if (!isLoading) {
-    //   setState(() {
-    //     isLoading = true;
-    //   });
-    //   await Future.delayed(const Duration(seconds: 1), () {
-    //     print('more');
-    //     setState(() {
-    //       page++;
-    //       isLoading = false;
-    //     });
-    //     getRequest();
-    //   });
-    // }
+    if (!isLoading) {
+      setState(() {
+        isLoading = true;
+      });
+      await Future.delayed(const Duration(seconds: 1), () {
+        print('more');
+        setState(() {
+          page++;
+          isLoading = false;
+        });
+        getVideo();
+      });
+    }
   }
 }
